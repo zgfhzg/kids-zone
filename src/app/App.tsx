@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Search, MapPin, Menu } from 'lucide-react';
+import { Search, MapPin, Menu, LocateFixed } from 'lucide-react';
 import KidsZoneMap from './components/KidsZoneMap';
 import ZoneCarousel from './components/ZoneCarousel';
 import ZoneDetailModal from './components/ZoneDetailModal';
@@ -9,10 +9,15 @@ import { mockKidsZones, categories } from './data/mockData';
 import { KidsZone } from './types';
 
 export default function App() {
+  const defaultCenter = { lat: 37.4979, lng: 127.0276 };
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const [searchQuery, setSearchQuery] = useState('');
   const [zones, setZones] = useState<KidsZone[]>(mockKidsZones);
   const [selectedZone, setSelectedZone] = useState<KidsZone | null>(mockKidsZones[0]);
+  const [mapCenter, setMapCenter] = useState(defaultCenter);
+  const [searchCenter, setSearchCenter] = useState(defaultCenter);
+  const [hasMapMoved, setHasMapMoved] = useState(false);
+  const [manualSearchVersion, setManualSearchVersion] = useState(0);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isLoadingZones, setIsLoadingZones] = useState(true);
@@ -29,6 +34,8 @@ export default function App() {
         const params = new URLSearchParams({
           category: selectedCategory,
           query: searchQuery,
+          lat: String(searchCenter.lat),
+          lng: String(searchCenter.lng),
         });
         const response = await fetch(`/api/kids-zones?${params}`, {
           signal: controller.signal,
@@ -72,7 +79,7 @@ export default function App() {
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, searchCenter, manualSearchVersion]);
 
   const filteredZones = useMemo(() => {
     let filtered = zones;
@@ -90,9 +97,13 @@ export default function App() {
     }
 
     return filtered;
-  }, [selectedCategory, searchQuery, zones]);
+  }, [selectedCategory, searchQuery, zones, dataSource]);
 
   const sourceLabel = dataSource === 'mock' ? '샘플 데이터' : '카카오 Local API';
+  const hasSearchableMapMove =
+    hasMapMoved &&
+    (Math.abs(mapCenter.lat - searchCenter.lat) > 0.0002 ||
+      Math.abs(mapCenter.lng - searchCenter.lng) > 0.0002);
 
   const handleZoneClick = (zone: KidsZone) => {
     setSelectedZone(zone);
@@ -110,6 +121,12 @@ export default function App() {
           zones={filteredZones}
           onMarkerClick={setSelectedZone}
           selectedZone={selectedZone}
+          onCenterChange={(center, isUserMove) => {
+            setMapCenter(center);
+            if (isUserMove) {
+              setHasMapMoved(true);
+            }
+          }}
         />
       </div>
 
@@ -156,12 +173,27 @@ export default function App() {
           )}
 
           <div className="mt-2">
-            <p className="text-xs text-gray-600">
-              총 <span className="font-semibold text-blue-600">{filteredZones.length}</span>개의 키즈존
-              <span className="ml-2 text-gray-400">
-                {isLoadingZones ? '불러오는 중' : sourceLabel}
-              </span>
-            </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-gray-600">
+                총 <span className="font-semibold text-blue-600">{filteredZones.length}</span>개의 키즈존
+                <span className="ml-2 text-gray-400">
+                  {isLoadingZones ? '불러오는 중' : sourceLabel}
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchCenter(mapCenter);
+                  setHasMapMoved(false);
+                  setManualSearchVersion((version) => version + 1);
+                }}
+                disabled={!hasSearchableMapMove || isLoadingZones}
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
+              >
+                <LocateFixed size={14} />
+                이 지역 검색
+              </button>
+            </div>
             {loadError && (
               <p className="mt-1 text-xs text-red-500">{loadError}</p>
             )}

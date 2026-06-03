@@ -6,6 +6,7 @@ interface KidsZoneMapProps {
   zones: KidsZone[];
   onMarkerClick: (zone: KidsZone) => void;
   selectedZone: KidsZone | null;
+  onCenterChange?: (center: { lat: number; lng: number }, isUserMove: boolean) => void;
 }
 
 const categoryColors: Record<string, string> = {
@@ -22,7 +23,7 @@ declare global {
     kakao?: {
       maps: {
         load: (callback: () => void) => void;
-        LatLng: new (lat: number, lng: number) => unknown;
+        LatLng: new (lat: number, lng: number) => KakaoLatLng;
         Map: new (container: HTMLElement, options: Record<string, unknown>) => KakaoMap;
         CustomOverlay: new (options: Record<string, unknown>) => KakaoOverlay;
         event: {
@@ -35,12 +36,18 @@ declare global {
 }
 
 interface KakaoMap {
+  getCenter: () => KakaoLatLng;
   setCenter: (position: unknown) => void;
   setLevel: (level: number) => void;
 }
 
 interface KakaoOverlay {
   setMap: (map: KakaoMap | null) => void;
+}
+
+interface KakaoLatLng {
+  getLat: () => number;
+  getLng: () => number;
 }
 
 function loadKakaoMaps() {
@@ -75,10 +82,16 @@ function loadKakaoMaps() {
   return window.__kakaoMapsPromise;
 }
 
-export default function KidsZoneMap({ zones, onMarkerClick, selectedZone }: KidsZoneMapProps) {
+export default function KidsZoneMap({
+  zones,
+  onMarkerClick,
+  selectedZone,
+  onCenterChange,
+}: KidsZoneMapProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<KakaoMap | null>(null);
   const overlaysRef = useRef<KakaoOverlay[]>([]);
+  const didUserMoveMapRef = useRef(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
@@ -101,6 +114,27 @@ export default function KidsZoneMap({ zones, onMarkerClick, selectedZone }: Kids
           center,
           level: 6,
         });
+
+        window.kakao.maps.event.addListener(mapRef.current, 'dragstart', () => {
+          didUserMoveMapRef.current = true;
+        });
+
+        window.kakao.maps.event.addListener(mapRef.current, 'idle', () => {
+          const nextCenter = mapRef.current?.getCenter();
+
+          if (nextCenter) {
+            onCenterChange?.({
+              lat: nextCenter.getLat(),
+              lng: nextCenter.getLng(),
+            }, didUserMoveMapRef.current);
+            didUserMoveMapRef.current = false;
+          }
+        });
+
+        onCenterChange?.({
+          lat: center.getLat(),
+          lng: center.getLng(),
+        }, false);
         setMapReady(true);
       })
       .catch(() => {
@@ -112,7 +146,7 @@ export default function KidsZoneMap({ zones, onMarkerClick, selectedZone }: Kids
     return () => {
       isMounted = false;
     };
-  }, [selectedZone, zones]);
+  }, [onCenterChange, selectedZone, zones]);
 
   useEffect(() => {
     const kakaoMaps = window.kakao?.maps;
