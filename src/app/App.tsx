@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Search, MapPin, Menu } from 'lucide-react';
 import KidsZoneMap from './components/KidsZoneMap';
 import ZoneCarousel from './components/ZoneCarousel';
@@ -11,18 +11,77 @@ import { KidsZone } from './types';
 export default function App() {
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const [searchQuery, setSearchQuery] = useState('');
+  const [zones, setZones] = useState<KidsZone[]>(mockKidsZones);
   const [selectedZone, setSelectedZone] = useState<KidsZone | null>(mockKidsZones[0]);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [isLoadingZones, setIsLoadingZones] = useState(true);
+  const [dataSource, setDataSource] = useState<'kakao' | 'cache' | 'mock'>('mock');
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      setIsLoadingZones(true);
+      setLoadError(null);
+
+      try {
+        const params = new URLSearchParams({
+          category: selectedCategory,
+          query: searchQuery,
+        });
+        const response = await fetch(`/api/kids-zones?${params}`, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch kids zones');
+        }
+
+        const data = (await response.json()) as {
+          zones: KidsZone[];
+          source: 'kakao' | 'cache';
+          queries?: string[];
+        };
+        const nextZones = data.zones.length > 0 ? data.zones : mockKidsZones;
+
+        setZones(nextZones);
+        setDataSource(data.zones.length > 0 ? data.source : 'mock');
+        setSelectedZone((currentZone) => {
+          if (!nextZones.length) {
+            return null;
+          }
+
+          return nextZones.find((zone) => zone.name === currentZone?.name) ?? nextZones[0];
+        });
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setZones(mockKidsZones);
+          setSelectedZone(mockKidsZones[0]);
+          setDataSource('mock');
+          setLoadError('실제 장소 데이터를 불러오지 못해 샘플 데이터를 표시 중입니다.');
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingZones(false);
+        }
+      }
+    }, 450);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [selectedCategory, searchQuery]);
 
   const filteredZones = useMemo(() => {
-    let filtered = mockKidsZones;
+    let filtered = zones;
 
     if (selectedCategory !== '전체') {
       filtered = filtered.filter(zone => zone.category === selectedCategory);
     }
 
-    if (searchQuery) {
+    if (searchQuery && dataSource === 'mock') {
       filtered = filtered.filter(zone =>
         zone.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         zone.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -31,7 +90,9 @@ export default function App() {
     }
 
     return filtered;
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, zones]);
+
+  const sourceLabel = dataSource === 'mock' ? '샘플 데이터' : '카카오 Local API';
 
   const handleZoneClick = (zone: KidsZone) => {
     setSelectedZone(zone);
@@ -69,7 +130,7 @@ export default function App() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
-              placeholder="장소명, 주소로 검색하세요..."
+              placeholder="#뛰어놀기 #체험 #물놀이처럼 검색하세요..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
@@ -97,7 +158,13 @@ export default function App() {
           <div className="mt-2">
             <p className="text-xs text-gray-600">
               총 <span className="font-semibold text-blue-600">{filteredZones.length}</span>개의 키즈존
+              <span className="ml-2 text-gray-400">
+                {isLoadingZones ? '불러오는 중' : sourceLabel}
+              </span>
             </p>
+            {loadError && (
+              <p className="mt-1 text-xs text-red-500">{loadError}</p>
+            )}
           </div>
         </div>
       </div>
