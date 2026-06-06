@@ -18,6 +18,8 @@ export default function App() {
   const [searchCenter, setSearchCenter] = useState(defaultCenter);
   const [hasMapMoved, setHasMapMoved] = useState(false);
   const [manualSearchVersion, setManualSearchVersion] = useState(0);
+  const [showSearchDetail, setShowSearchDetail] = useState(false);
+  const [isBottomPanelHidden, setIsBottomPanelHidden] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isLoadingZones, setIsLoadingZones] = useState(true);
@@ -29,6 +31,8 @@ export default function App() {
     const timeoutId = window.setTimeout(async () => {
       setIsLoadingZones(true);
       setLoadError(null);
+      setShowSearchDetail(false);
+      setIsBottomPanelHidden(false);
 
       try {
         const params = new URLSearchParams({
@@ -185,6 +189,8 @@ export default function App() {
                 onClick={() => {
                   setSearchCenter(mapCenter);
                   setHasMapMoved(false);
+                  setShowSearchDetail(false);
+                  setIsBottomPanelHidden(false);
                   setManualSearchVersion((version) => version + 1);
                 }}
                 disabled={!hasSearchableMapMove || isLoadingZones}
@@ -205,6 +211,17 @@ export default function App() {
         zones={filteredZones}
         onZoneClick={handleZoneClick}
         onCurrentZoneChange={handleCurrentZoneChange}
+        selectedZone={selectedZone}
+        showResultList={searchQuery.trim().length > 0}
+        showSearchDetail={showSearchDetail}
+        isPanelHidden={isBottomPanelHidden}
+        onResultSelect={(zone) => {
+          setSelectedZone(zone);
+          setShowSearchDetail(true);
+        }}
+        onBackToResults={() => setShowSearchDetail(false)}
+        onHidePanel={() => setIsBottomPanelHidden(true)}
+        onShowPanel={() => setIsBottomPanelHidden(false)}
       />
 
       {showDetailModal && selectedZone && (
