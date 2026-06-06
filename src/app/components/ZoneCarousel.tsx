@@ -1,10 +1,9 @@
 import Slider from 'react-slick';
-import { ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Clock, DollarSign, Globe, List, MapPin, Phone, Star, X } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, ChevronUp, Clock, DollarSign, Globe, List, MapPin, Phone, Star, X } from 'lucide-react';
 import { KidsZone } from '../types';
 
 interface ZoneCarouselProps {
   zones: KidsZone[];
-  onZoneClick: (zone: KidsZone) => void;
   onCurrentZoneChange: (zone: KidsZone) => void;
   selectedZone: KidsZone | null;
   showResultList: boolean;
@@ -14,6 +13,8 @@ interface ZoneCarouselProps {
   onBackToResults: () => void;
   onHidePanel: () => void;
   onShowPanel: () => void;
+  isZoneSaved: (zone: KidsZone) => boolean;
+  onToggleSave: (zone: KidsZone) => void;
 }
 
 function NextArrow(props: any) {
@@ -44,17 +45,25 @@ function ZoneDetailCard({
   zone,
   onClick,
   compact = false,
+  fullDetails = false,
+  isSaved,
+  onToggleSave,
+  reserveCloseSpace = false,
 }: {
   zone: KidsZone;
-  onClick: () => void;
+  onClick?: () => void;
   compact?: boolean;
+  fullDetails?: boolean;
+  isSaved: boolean;
+  onToggleSave: () => void;
+  reserveCloseSpace?: boolean;
 }) {
   return (
     <div
       onClick={onClick}
-      className={`bg-white cursor-pointer transition-shadow ${
-        compact ? 'p-5' : 'rounded-t-3xl shadow-2xl p-6 hover:shadow-3xl'
-      }`}
+      className={`bg-white transition-shadow ${
+        onClick ? 'cursor-pointer' : ''
+      } ${compact ? 'p-5' : 'rounded-t-3xl shadow-2xl p-6'}`}
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
@@ -70,6 +79,19 @@ function ZoneDetailCard({
             </div>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleSave();
+          }}
+          aria-label={isSaved ? '저장 해제' : '저장'}
+          className={`ml-3 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+            isSaved ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
+          } ${reserveCloseSpace ? 'mr-11' : ''}`}
+        >
+          <Bookmark size={18} fill={isSaved ? 'currentColor' : 'none'} />
+        </button>
       </div>
 
       <div className={`${compact ? 'space-y-2' : 'space-y-3'} mb-4`}>
@@ -113,12 +135,19 @@ function ZoneDetailCard({
         </div>
       </div>
 
-      <p className="text-gray-600 leading-relaxed mb-4 line-clamp-2">
-        {zone.description}
-      </p>
+      {fullDetails ? (
+        <div className="mb-4">
+          <h3 className="mb-2 text-base font-semibold text-gray-900">시설 소개</h3>
+          <p className="text-gray-600 leading-relaxed">{zone.description}</p>
+        </div>
+      ) : (
+        <p className="text-gray-600 leading-relaxed mb-4 line-clamp-2">
+          {zone.description}
+        </p>
+      )}
 
       <div className="flex flex-wrap gap-2">
-        {zone.facilities.slice(0, 4).map((facility, index) => (
+        {(fullDetails ? zone.facilities : zone.facilities.slice(0, 4)).map((facility, index) => (
           <span
             key={index}
             className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
@@ -126,23 +155,39 @@ function ZoneDetailCard({
             {facility}
           </span>
         ))}
-        {zone.facilities.length > 4 && (
+        {!fullDetails && zone.facilities.length > 4 && (
           <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
             +{zone.facilities.length - 4}
           </span>
         )}
       </div>
 
-      <div className="mt-4 pt-4 border-t border-gray-200 text-center">
-        <p className="text-sm text-gray-500">탭하여 상세정보 보기</p>
-      </div>
+      {fullDetails && zone.reviews.length > 0 && (
+        <div className="mt-5 border-t border-gray-200 pt-5">
+          <h3 className="mb-3 text-base font-semibold text-gray-900">최근 후기</h3>
+          <div className="space-y-3">
+            {zone.reviews.map((review, index) => (
+              <div key={index} className="rounded-lg border-l-4 border-blue-500 bg-gray-50 px-4 py-3">
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1 text-yellow-500">
+                    <Star size={14} fill="currentColor" />
+                    <span className="text-sm font-medium">{review.rating}</span>
+                  </div>
+                  <span className="text-sm text-gray-500">{review.author}</span>
+                  <span className="text-xs text-gray-400">{review.date}</span>
+                </div>
+                <p className="text-sm leading-relaxed text-gray-700">{review.comment}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function ZoneCarousel({
   zones,
-  onZoneClick,
   onCurrentZoneChange,
   selectedZone,
   showResultList,
@@ -152,6 +197,8 @@ export default function ZoneCarousel({
   onBackToResults,
   onHidePanel,
   onShowPanel,
+  isZoneSaved,
+  onToggleSave,
 }: ZoneCarouselProps) {
   const settings = {
     dots: true,
@@ -242,7 +289,9 @@ export default function ZoneCarousel({
             <ZoneDetailCard
               zone={currentZone}
               compact
-              onClick={() => onZoneClick(currentZone)}
+              fullDetails
+              isSaved={isZoneSaved(currentZone)}
+              onToggleSave={() => onToggleSave(currentZone)}
             />
           </div>
         </div>
@@ -297,6 +346,9 @@ export default function ZoneCarousel({
                     <span className="mt-1 block truncate text-sm text-gray-600">{zone.address}</span>
                     <span className="mt-1 block text-xs text-blue-600">{zone.category} · {zone.distance}km</span>
                   </span>
+                  {isZoneSaved(zone) && (
+                    <Bookmark size={16} className="mt-1 shrink-0 text-blue-600" fill="currentColor" />
+                  )}
                 </button>
               );
             })}
@@ -312,7 +364,7 @@ export default function ZoneCarousel({
         {zones.map((zone) => (
           <div key={zone.id}>
             <div className="px-6 pb-6">
-              <div className="relative">
+              <div className="relative max-h-[72vh] overflow-y-auto rounded-t-3xl">
                 <button
                   type="button"
                   onClick={onHidePanel}
@@ -321,7 +373,13 @@ export default function ZoneCarousel({
                 >
                   <X size={18} />
                 </button>
-                <ZoneDetailCard zone={zone} onClick={() => onZoneClick(zone)} />
+                <ZoneDetailCard
+                  zone={zone}
+                  fullDetails
+                  isSaved={isZoneSaved(zone)}
+                  onToggleSave={() => onToggleSave(zone)}
+                  reserveCloseSpace
+                />
               </div>
             </div>
           </div>
