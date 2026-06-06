@@ -19,6 +19,7 @@ export default function App() {
   const [hasMapMoved, setHasMapMoved] = useState(false);
   const [manualSearchVersion, setManualSearchVersion] = useState(0);
   const [showSearchDetail, setShowSearchDetail] = useState(false);
+  const [showAreaResultsList, setShowAreaResultsList] = useState(false);
   const [isBottomPanelHidden, setIsBottomPanelHidden] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -114,6 +115,12 @@ export default function App() {
     setShowDetailModal(true);
   };
 
+  const handleMapMarkerClick = (zone: KidsZone) => {
+    setSelectedZone(zone);
+    setShowSearchDetail(true);
+    setIsBottomPanelHidden(false);
+  };
+
   const handleCurrentZoneChange = (zone: KidsZone) => {
     setSelectedZone(zone);
   };
@@ -123,7 +130,7 @@ export default function App() {
       <div className="absolute inset-0 z-0">
         <KidsZoneMap
           zones={filteredZones}
-          onMarkerClick={setSelectedZone}
+          onMarkerClick={handleMapMarkerClick}
           selectedZone={selectedZone}
           onCenterChange={(center, isUserMove) => {
             setMapCenter(center);
@@ -153,7 +160,10 @@ export default function App() {
               type="text"
               placeholder="#뛰어놀기 #체험 #물놀이처럼 검색하세요..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowAreaResultsList(false);
+              }}
               className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
             />
           </div>
@@ -190,6 +200,7 @@ export default function App() {
                   setSearchCenter(mapCenter);
                   setHasMapMoved(false);
                   setShowSearchDetail(false);
+                  setShowAreaResultsList(true);
                   setIsBottomPanelHidden(false);
                   setManualSearchVersion((version) => version + 1);
                 }}
@@ -212,7 +223,7 @@ export default function App() {
         onZoneClick={handleZoneClick}
         onCurrentZoneChange={handleCurrentZoneChange}
         selectedZone={selectedZone}
-        showResultList={searchQuery.trim().length > 0}
+        showResultList={searchQuery.trim().length > 0 || showAreaResultsList}
         showSearchDetail={showSearchDetail}
         isPanelHidden={isBottomPanelHidden}
         onResultSelect={(zone) => {

@@ -1,5 +1,5 @@
 import Slider from 'react-slick';
-import { ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Clock, DollarSign, Globe, List, Map, MapPin, Phone, Star } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Clock, DollarSign, Globe, List, MapPin, Phone, Star, X } from 'lucide-react';
 import { KidsZone } from '../types';
 
 interface ZoneCarouselProps {
@@ -188,10 +188,10 @@ export default function ZoneCarousel({
           <button
             type="button"
             onClick={onHidePanel}
-            className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-sm font-semibold text-gray-700"
+            aria-label="패널 닫기"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700"
           >
-            <Map size={16} />
-            지도만 보기
+            <X size={18} />
           </button>
         </div>
         <p className="text-gray-500">검색 결과가 없습니다.</p>
@@ -233,10 +233,10 @@ export default function ZoneCarousel({
               <button
                 type="button"
                 onClick={onHidePanel}
-                className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-sm font-semibold text-gray-700"
+                aria-label="패널 닫기"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700"
               >
-                <Map size={16} />
-                지도만 보기
+                <X size={18} />
               </button>
             </div>
             <ZoneDetailCard
@@ -262,10 +262,10 @@ export default function ZoneCarousel({
                 <button
                   type="button"
                   onClick={onHidePanel}
-                  className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-sm font-semibold text-gray-700"
+                  aria-label="패널 닫기"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700"
                 >
-                  <Map size={16} />
-                  지도만 보기
+                  <X size={18} />
                 </button>
               </div>
             </div>
@@ -308,21 +308,21 @@ export default function ZoneCarousel({
 
   return (
     <div className="absolute bottom-0 left-0 right-0 z-50">
-      <div className="absolute -top-12 right-6 z-20">
-        <button
-          type="button"
-          onClick={onHidePanel}
-          className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-800 shadow-lg"
-        >
-          <Map size={16} />
-          지도만 보기
-        </button>
-      </div>
       <Slider {...settings}>
         {zones.map((zone) => (
           <div key={zone.id}>
             <div className="px-6 pb-6">
-              <ZoneDetailCard zone={zone} onClick={() => onZoneClick(zone)} />
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={onHidePanel}
+                  aria-label="패널 닫기"
+                  className="absolute right-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700"
+                >
+                  <X size={18} />
+                </button>
+                <ZoneDetailCard zone={zone} onClick={() => onZoneClick(zone)} />
+              </div>
             </div>
           </div>
         ))}
