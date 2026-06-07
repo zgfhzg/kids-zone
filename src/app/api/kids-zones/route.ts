@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 const DEFAULT_LAT = 37.4979;
 const DEFAULT_LNG = 127.0276;
-const DEFAULT_RADIUS = 10000;
+const DEFAULT_RADIUS = 5000;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
 const categoryQueries: Record<string, string[]> = {
