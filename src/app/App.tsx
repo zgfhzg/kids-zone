@@ -17,20 +17,21 @@ export default function App() {
   const defaultCenter = { lat: 37.4979, lng: 127.0276 };
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const [searchQuery, setSearchQuery] = useState('');
-  const [zones, setZones] = useState<KidsZone[]>(mockKidsZones);
-  const [selectedZone, setSelectedZone] = useState<KidsZone | null>(mockKidsZones[0]);
+  const [zones, setZones] = useState<KidsZone[]>([]);
+  const [selectedZone, setSelectedZone] = useState<KidsZone | null>(null);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [searchCenter, setSearchCenter] = useState(defaultCenter);
   const [hasMapMoved, setHasMapMoved] = useState(false);
   const [manualSearchVersion, setManualSearchVersion] = useState(0);
   const [showSearchDetail, setShowSearchDetail] = useState(false);
-  const [showAreaResultsList, setShowAreaResultsList] = useState(false);
+  const [showAreaResultsList, setShowAreaResultsList] = useState(true);
   const [isBottomPanelHidden, setIsBottomPanelHidden] = useState(false);
   const [showMainMenu, setShowMainMenu] = useState(false);
   const [showSavedItems, setShowSavedItems] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [savedZones, setSavedZones] = useState<KidsZone[]>([]);
   const [isLoadingZones, setIsLoadingZones] = useState(true);
+  const [isInitialLocationResolved, setIsInitialLocationResolved] = useState(false);
   const [dataSource, setDataSource] = useState<'kakao' | 'cache' | 'mock'>('mock');
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -50,6 +51,41 @@ export default function App() {
   }, [savedZones]);
 
   useEffect(() => {
+    if (!navigator.geolocation) {
+      setIsInitialLocationResolved(true);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const currentCenter = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+
+        setMapCenter(currentCenter);
+        setSearchCenter(currentCenter);
+        setHasMapMoved(false);
+        setShowAreaResultsList(true);
+        setIsInitialLocationResolved(true);
+      },
+      () => {
+        setShowAreaResultsList(true);
+        setIsInitialLocationResolved(true);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 1000 * 60 * 5,
+        timeout: 5000,
+      }
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!isInitialLocationResolved) {
+      return;
+    }
+
     const controller = new AbortController();
     const timeoutId = window.setTimeout(async () => {
       setIsLoadingZones(true);
@@ -106,7 +142,7 @@ export default function App() {
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [selectedCategory, searchQuery, searchCenter, manualSearchVersion]);
+  }, [selectedCategory, searchQuery, searchCenter, manualSearchVersion, isInitialLocationResolved]);
 
   const filteredZones = useMemo(() => {
     let filtered = zones;
@@ -164,6 +200,7 @@ export default function App() {
       <div className="absolute inset-0 z-0">
         <KidsZoneMap
           zones={filteredZones}
+          center={mapCenter}
           onMarkerClick={handleMapMarkerClick}
           selectedZone={selectedZone}
           onCenterChange={(center, isUserMove) => {

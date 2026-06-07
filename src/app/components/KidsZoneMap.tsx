@@ -4,6 +4,7 @@ import { KidsZone } from '../types';
 
 interface KidsZoneMapProps {
   zones: KidsZone[];
+  center: { lat: number; lng: number };
   onMarkerClick: (zone: KidsZone) => void;
   selectedZone: KidsZone | null;
   onCenterChange?: (center: { lat: number; lng: number }, isUserMove: boolean) => void;
@@ -84,6 +85,7 @@ function loadKakaoMaps() {
 
 export default function KidsZoneMap({
   zones,
+  center,
   onMarkerClick,
   selectedZone,
   onCenterChange,
@@ -147,6 +149,16 @@ export default function KidsZoneMap({
       isMounted = false;
     };
   }, [onCenterChange, selectedZone, zones]);
+
+  useEffect(() => {
+    const kakaoMaps = window.kakao?.maps;
+
+    if (!mapReady || !kakaoMaps || !mapRef.current || selectedZone) {
+      return;
+    }
+
+    mapRef.current.setCenter(new kakaoMaps.LatLng(center.lat, center.lng));
+  }, [center, mapReady, selectedZone]);
 
   useEffect(() => {
     const kakaoMaps = window.kakao?.maps;
