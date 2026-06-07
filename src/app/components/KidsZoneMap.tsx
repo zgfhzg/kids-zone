@@ -94,6 +94,7 @@ export default function KidsZoneMap({
   const mapRef = useRef<KakaoMap | null>(null);
   const overlaysRef = useRef<KakaoOverlay[]>([]);
   const didUserMoveMapRef = useRef(false);
+  const selectedZoneCenterKeyRef = useRef<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
@@ -157,6 +158,7 @@ export default function KidsZoneMap({
       return;
     }
 
+    selectedZoneCenterKeyRef.current = null;
     mapRef.current.setCenter(new kakaoMaps.LatLng(center.lat, center.lng));
   }, [center, mapReady, selectedZone]);
 
@@ -196,9 +198,12 @@ export default function KidsZoneMap({
       return overlay;
     });
 
-    if (selectedZone) {
+    const selectedZoneCenterKey = selectedZone ? `${selectedZone.name}|${selectedZone.address}` : null;
+
+    if (selectedZone && selectedZoneCenterKeyRef.current !== selectedZoneCenterKey) {
       mapRef.current.setCenter(new kakaoMaps.LatLng(selectedZone.lat, selectedZone.lng));
       mapRef.current.setLevel(5);
+      selectedZoneCenterKeyRef.current = selectedZoneCenterKey;
     }
   }, [zones, selectedZone, onMarkerClick, mapReady]);
 
