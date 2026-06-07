@@ -8,6 +8,7 @@ import { mockKidsZones, categories } from './data/mockData';
 import { KidsZone } from './types';
 
 const SAVED_ZONES_STORAGE_KEY = 'kids-zone.saved-zones';
+const SAVED_ZONES_DEVICE_ID_KEY = 'kids-zone.saved-zones-device-id';
 
 function getZoneKey(zone: KidsZone) {
   return `${zone.name}|${zone.address}`;
@@ -30,6 +31,8 @@ export default function App() {
   const [showSavedItems, setShowSavedItems] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [savedZones, setSavedZones] = useState<KidsZone[]>([]);
+  const [savedZonesDeviceId, setSavedZonesDeviceId] = useState<string | null>(null);
+  const [hasLoadedSavedZones, setHasLoadedSavedZones] = useState(false);
   const [isLoadingZones, setIsLoadingZones] = useState(true);
   const [isInitialLocationResolved, setIsInitialLocationResolved] = useState(false);
   const [dataSource, setDataSource] = useState<'kakao' | 'cache' | 'mock'>('mock');
@@ -37,18 +40,76 @@ export default function App() {
 
   useEffect(() => {
     try {
-      const rawSavedZones = window.localStorage.getItem(SAVED_ZONES_STORAGE_KEY);
-      if (rawSavedZones) {
-        setSavedZones(JSON.parse(rawSavedZones) as KidsZone[]);
+      const existingDeviceId = window.localStorage.getItem(SAVED_ZONES_DEVICE_ID_KEY);
+      const nextDeviceId =
+        existingDeviceId ||
+        (window.crypto?.randomUUID?.() ?? `device-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+
+      if (!existingDeviceId) {
+        window.localStorage.setItem(SAVED_ZONES_DEVICE_ID_KEY, nextDeviceId);
       }
+
+      setSavedZonesDeviceId(nextDeviceId);
     } catch {
-      setSavedZones([]);
+      setSavedZonesDeviceId(`device-${Date.now()}`);
     }
   }, []);
 
   useEffect(() => {
+    if (!savedZonesDeviceId) {
+      return;
+    }
+
+    let isMounted = true;
+    const deviceId = savedZonesDeviceId;
+
+    async function loadSavedZones() {
+      try {
+        const params = new URLSearchParams({ deviceId });
+        const response = await fetch(`/api/saved-zones?${params}`, {
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load saved zones');
+        }
+
+        const data = (await response.json()) as { zones: KidsZone[] };
+
+        if (isMounted) {
+          setSavedZones(data.zones);
+          setHasLoadedSavedZones(true);
+        }
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        try {
+          const rawSavedZones = window.localStorage.getItem(SAVED_ZONES_STORAGE_KEY);
+          setSavedZones(rawSavedZones ? JSON.parse(rawSavedZones) as KidsZone[] : []);
+        } catch {
+          setSavedZones([]);
+        } finally {
+          setHasLoadedSavedZones(true);
+        }
+      }
+    }
+
+    loadSavedZones();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [savedZonesDeviceId]);
+
+  useEffect(() => {
+    if (!hasLoadedSavedZones) {
+      return;
+    }
+
     window.localStorage.setItem(SAVED_ZONES_STORAGE_KEY, JSON.stringify(savedZones));
-  }, [savedZones]);
+  }, [savedZones, hasLoadedSavedZones]);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -185,6 +246,7 @@ export default function App() {
 
   const handleToggleSave = (zone: KidsZone) => {
     const zoneKey = getZoneKey(zone);
+    const wasSaved = savedZones.some((savedZone) => getZoneKey(savedZone) === zoneKey);
 
     setSavedZones((currentSavedZones) => {
       if (currentSavedZones.some((savedZone) => getZoneKey(savedZone) === zoneKey)) {
@@ -193,6 +255,33 @@ export default function App() {
 
       return [zone, ...currentSavedZones];
     });
+
+    if (!savedZonesDeviceId) {
+      return;
+    }
+
+    if (wasSaved) {
+      const params = new URLSearchParams({
+        deviceId: savedZonesDeviceId,
+        zoneKey,
+      });
+
+      fetch(`/api/saved-zones?${params}`, {
+        method: 'DELETE',
+      }).catch(() => undefined);
+      return;
+    }
+
+    fetch('/api/saved-zones', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        deviceId: savedZonesDeviceId,
+        zone,
+      }),
+    }).catch(() => undefined);
   };
 
   return (
